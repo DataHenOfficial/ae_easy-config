@@ -1,4 +1,4 @@
-module AeEasy
+module DhEasy
   module Config
     # Manage configuration from a file.
     class Local
@@ -10,13 +10,6 @@ module AeEasy
       # Clear cache.
       def self.clear_cache
         @@local = {}
-      end
-
-      # Convert to hash.
-      #
-      # @return [Hash]
-      def to_h
-        local
       end
 
       # Load into or from cache a configuration file contents.
@@ -31,12 +24,33 @@ module AeEasy
         opts = {
           force: false
         }.merge opts
-        key = file_path = File.expand_path file_path
+
+        return {} if file_path.nil?
+
         @@local ||= {}
+        key = file_path = File.expand_path file_path
         return @@local[key] if !opts[:force] && @@local.has_key?(key)
 
-        @@local[key] = YAML.load_file(file_path) || {}
+        @@local[key] = (YAML.load_file(file_path) rescue {}) || {}
         @@local[key].freeze
+      end
+
+      # Default configuration file path list to be prioritized from first to last.
+      #
+      # @return [Array<String>] Configuration file path list. Default is
+      #   `['./dh_easy.yaml', './dh_easy.yml']`
+      def self.default_file_path_list
+        @@default_file_path_list ||= [
+          './dh_easy.yaml',
+          './dh_easy.yml'
+        ]
+      end
+
+      # Convert to hash.
+      #
+      # @return [Hash]
+      def to_h
+        local
       end
 
       # Get configuration key contents.
@@ -48,12 +62,30 @@ module AeEasy
         local[key]
       end
 
-      # Local configuration file path.
+      # Lookup #file_path_list for the first valid file.
       #
-      # @return [String] Configuration local file path. Default is
-      #   `./ae_easy.yaml`
+      # @return [String,nil] Valid file path or `nil`.
+      def lookup_file_path
+        file_path_list.each do |candidate_file_path|
+          next unless File.file?(File.expand_path(candidate_file_path))
+          return candidate_file_path
+        end
+        nil
+      end
+
+      # Local configuration file path. It will lookup for the first valid file
+      #   at #file_path_list as default value.
+      #
+      # @return [String] Configuration local file path.
       def file_path
-        @file_path ||= File.expand_path(File.join('.', 'ae_easy.yaml'))
+        @file_path ||= lookup_file_path
+      end
+
+      # Local configuration file path list. It will prioritize from first to last.
+      #
+      # @return [Array<String>] Configuration local file path.
+      def file_path_list
+        @file_path_list ||= self.class.default_file_path_list
       end
 
       # Loads a local configuration file.
@@ -73,7 +105,14 @@ module AeEasy
       end
 
       # Reloads local configuration file.
-      def reload
+      def reload!
+        load force: true
+      end
+
+      # Reset instance to lookup for valid files from #file_path_list and load
+      #   the first valid configuration file found.
+      def reset!
+        @file_path = nil
         load force: true
       end
 
@@ -81,6 +120,7 @@ module AeEasy
       #
       # @param [Hash] opts ({}) Configuration options (see #load).
       def initialize opts = {}
+        @file_path_list = (opts.delete(:file_path_list) + []) unless opts[:file_path_list].nil?
         load opts
       end
     end

@@ -5,9 +5,10 @@ require 'simplecov-console'
 SimpleCov.formatter = SimpleCov::Formatter::Console
 SimpleCov.start
 
+require 'tmpdir'
 require 'minitest'
 require 'minitest/spec'
 require 'minitest/autorun'
 require 'timecop'
 require 'byebug'
-require 'ae_easy/config'
+require 'dh_easy/config'
